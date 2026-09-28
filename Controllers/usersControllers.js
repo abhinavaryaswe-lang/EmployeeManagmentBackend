@@ -139,7 +139,7 @@ exports.userstatus = async (req, res) => {
 // export user
 exports.userExport = async (req, res) => {
     try {
-        const usersdata = await users.find();
+        const usersdata = await users.find().lean();
         const headers = [
             "FirstName",
             "LastName",
@@ -151,27 +151,36 @@ exports.userExport = async (req, res) => {
             "DateCreated",
             "DateUpdated",
         ];
-        const csvStream = csv.format({ headers, alwaysWriteHeaders: true });
+        const csvContent = await new Promise((resolve, reject) => {
+            const csvStream = csv.format({ headers, alwaysWriteHeaders: true, writeBOM: true });
+            const chunks = [];
 
-        res.setHeader("Content-Type", "text/csv; charset=utf-8");
-        res.setHeader("Content-Disposition", 'attachment; filename="users.csv"');
-        csvStream.pipe(res);
+            csvStream.on("data", (chunk) => chunks.push(chunk));
+            csvStream.on("error", reject);
+            csvStream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
 
-        usersdata.forEach((user) => {
-            csvStream.write({
-                FirstName: user.fname || "-",
-                LastName: user.lname || "-",
-                Email: user.email || "-",
-                Phone: user.mobile || "-",
-                Gender: user.gender || "-",
-                Status: user.status || "-",
-                Location: user.location || "-",
-                DateCreated: user.datecreated || "-",
-                DateUpdated: user.dateUpdated || "-",
+            usersdata.forEach((user) => {
+                csvStream.write({
+                    FirstName: user.fname || "-",
+                    LastName: user.lname || "-",
+                    Email: user.email || "-",
+                    Phone: user.mobile || "-",
+                    Gender: user.gender || "-",
+                    Status: user.status || "-",
+                    Location: user.location || "-",
+                    DateCreated: user.datecreated || "-",
+                    DateUpdated: user.dateUpdated || "-",
+                });
             });
+
+            csvStream.end();
         });
 
-        csvStream.end();
+        res
+            .status(200)
+            .set("Content-Type", "text/csv; charset=utf-8")
+            .set("Content-Disposition", 'attachment; filename="users.csv"')
+            .send(csvContent);
     } catch (error) {
         res.status(500).json({ message: "Could not export users to CSV" });
     }

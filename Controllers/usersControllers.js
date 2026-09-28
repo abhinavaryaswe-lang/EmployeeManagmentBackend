@@ -1,8 +1,6 @@
 const users = require("../models/usersSchema");
 const moment = require("moment");
 const csv = require("fast-csv");
-const fs = require("fs");
-const BASE_URL = process.env.BASE_URL
 
 // register user
 exports.userpost = async (req, res) => {
@@ -142,49 +140,39 @@ exports.userstatus = async (req, res) => {
 exports.userExport = async (req, res) => {
     try {
         const usersdata = await users.find();
+        const headers = [
+            "FirstName",
+            "LastName",
+            "Email",
+            "Phone",
+            "Gender",
+            "Status",
+            "Location",
+            "DateCreated",
+            "DateUpdated",
+        ];
+        const csvStream = csv.format({ headers, alwaysWriteHeaders: true });
 
-        const csvStream = csv.format({ headers: true });
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", 'attachment; filename="users.csv"');
+        csvStream.pipe(res);
 
-        if (!fs.existsSync("public/files/export")) {
-            if (!fs.existsSync("public/files")) {
-                fs.mkdirSync("public/files/");
-            }
-            if (!fs.existsSync("public/files/export")) {
-                fs.mkdirSync("./public/files/export");
-            }
-        }
-
-        const writablestream = fs.createWriteStream(
-            "public/files/export/users.csv"
-        );
-
-        csvStream.pipe(writablestream);
-
-        writablestream.on("finish", function () {
-            res.json({
-                downloadUrl: `${BASE_URL}/files/export/users.csv`,
+        usersdata.forEach((user) => {
+            csvStream.write({
+                FirstName: user.fname || "-",
+                LastName: user.lname || "-",
+                Email: user.email || "-",
+                Phone: user.mobile || "-",
+                Gender: user.gender || "-",
+                Status: user.status || "-",
+                Location: user.location || "-",
+                DateCreated: user.datecreated || "-",
+                DateUpdated: user.dateUpdated || "-",
             });
         });
-        if (usersdata.length > 0) {
-            usersdata.map((user) => {
-                csvStream.write({
-                    FirstName: user.fname ? user.fname : "-",
-                    LastName: user.lname ? user.lname : "-",
-                    Email: user.email ? user.email : "-",
-                    Phone: user.mobile ? user.mobile : "-",
-                    Gender: user.gender ? user.gender : "-",
-                    Status: user.status ? user.status : "-",
-                    Profile: user.profile ? user.profile : "-",
-                    Location: user.location ? user.location : "-",
-                    DateCreated: user.datecreated ? user.datecreated : "-",
-                    DateUpdated: user.dateUpdated ? user.dateUpdated : "-",
-                })
-            })
-        }
-        csvStream.end();
-        writablestream.end();
 
+        csvStream.end();
     } catch (error) {
-        res.status(401).json(error)
+        res.status(500).json({ message: "Could not export users to CSV" });
     }
 }

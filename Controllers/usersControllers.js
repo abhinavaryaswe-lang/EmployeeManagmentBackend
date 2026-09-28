@@ -7,26 +7,37 @@ exports.userpost = async (req, res) => {
     const { fname, lname, email, mobile, gender, location, status } = req.body;
 
     if (!fname || !lname || !email || !mobile || !gender || !location || !status) {
-        res.status(401).json("All Inputs is required")
+        return res.status(400).json({ message: "All fields are required" });
     }
 
     try {
-        const preuser = await users.findOne({ email: email });
+        const preuser = await users.findOne({
+            $or: [{ email }, { mobile }],
+        });
 
         if (preuser) {
-            res.status(401).json("This user already exist in our databse")
-        } else {
-            const datecreated = moment(new Date()).format("YYYY-MM-DD hh:mm:ss");
-
-            const userData = new users({
-                fname, lname, email, mobile, gender, location, status, datecreated
-            });
-            await userData.save();
-            res.status(200).json(userData);
+            const duplicateField = preuser.email === email ? "email" : "mobile number";
+            return res.status(409).json({ message: `This ${duplicateField} is already registered` });
         }
+
+        const datecreated = moment(new Date()).format("YYYY-MM-DD hh:mm:ss");
+        const userData = new users({
+            fname, lname, email, mobile, gender, location, status, datecreated
+        });
+        await userData.save();
+        return res.status(200).json(userData);
     } catch (error) {
-        res.status(401).json(error);
-        console.log("catch block error")
+        if (error.code === 11000) {
+            const duplicateField = error.keyPattern?.email ? "email" : "mobile number";
+            return res.status(409).json({ message: `This ${duplicateField} is already registered` });
+        }
+
+        if (error.name === "ValidationError") {
+            return res.status(400).json({ message: error.message });
+        }
+
+        console.error("Registration failed:", error);
+        return res.status(500).json({ message: "Could not register user" });
     }
 };
 

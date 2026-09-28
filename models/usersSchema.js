@@ -39,7 +39,6 @@ const usersSchema = new mongoose.Schema({
     },
     profile: {
         type: String,
-        required: true,
     },
     location: {
         type: String,

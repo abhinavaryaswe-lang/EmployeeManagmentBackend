@@ -6,10 +6,9 @@ const BASE_URL = process.env.BASE_URL
 
 // register user
 exports.userpost = async (req, res) => {
-    const file = req.file.filename;
     const { fname, lname, email, mobile, gender, location, status } = req.body;
 
-    if (!fname || !lname || !email || !mobile || !gender || !location || !status || !file) {
+    if (!fname || !lname || !email || !mobile || !gender || !location || !status) {
         res.status(401).json("All Inputs is required")
     }
 
@@ -19,11 +18,10 @@ exports.userpost = async (req, res) => {
         if (preuser) {
             res.status(401).json("This user already exist in our databse")
         } else {
-
             const datecreated = moment(new Date()).format("YYYY-MM-DD hh:mm:ss");
 
             const userData = new users({
-                fname, lname, email, mobile, gender, location, status, profile: file, datecreated
+                fname, lname, email, mobile, gender, location, status, datecreated
             });
             await userData.save();
             res.status(200).json(userData);
@@ -98,14 +96,13 @@ exports.singleuserget = async (req, res) => {
 // user edit
 exports.useredit = async (req, res) => {
     const { id } = req.params;
-    const { fname, lname, email, mobile, gender, location, status, user_profile } = req.body;
-    const file = req.file ? req.file.filename : user_profile
+    const { fname, lname, email, mobile, gender, location, status } = req.body;
 
     const dateUpdated = moment(new Date()).format("YYYY-MM-DD hh:mm:ss");
 
     try {
         const updateuser = await users.findByIdAndUpdate({ _id: id }, {
-            fname, lname, email, mobile, gender, location, status, profile: file, dateUpdated
+            fname, lname, email, mobile, gender, location, status, dateUpdated
         }, {
             new: true
         });
